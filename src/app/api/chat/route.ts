@@ -29,23 +29,99 @@ export async function POST(req: NextRequest) {
       if (selectedModel === "chatgpt") {
         return await handleOpenRouter(messages, systemInstruction);
       }
+      if (selectedModel === "groq") {
+        return await handleGroq(messages, systemInstruction);
+      }
       return await handleGemini(messages, systemInstruction);
     } catch (modelError) {
       console.warn(`⚠️ ERRO no modelo ${selectedModel}, tentando fallback...`, modelError);
       // Fallback automático se o selecionado falhar
       if (selectedModel === "gemini") {
-        return await handleOpenRouter(messages, systemInstruction);
+        return await handleGroq(messages, systemInstruction).catch(() => handleOpenRouter(messages, systemInstruction));
+      } else if (selectedModel === "groq") {
+        return await handleGemini(messages, systemInstruction).catch(() => handleOpenRouter(messages, systemInstruction));
       } else {
-        return await handleGemini(messages, systemInstruction);
+        return await handleGemini(messages, systemInstruction).catch(() => handleGroq(messages, systemInstruction));
       }
     }
-  } catch (openRouterError: any) {
-    console.error("OpenRouter Error:", openRouterError);
-    return new Response(JSON.stringify({ error: "Não foi possível processar sua solicitação no momento.", msg: openRouterError?.message || String(openRouterError) }), {
+  } catch (error: any) {
+    console.error("API Chat Error:", error);
+    return new Response(JSON.stringify({ error: "Não foi possível processar sua solicitação no momento.", msg: error?.message || String(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+async function handleGroq(messages: any[], systemInstruction: string) {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemInstruction },
+        ...messages.map((m: any) => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.content,
+        })),
+      ],
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(`Groq API error: ${JSON.stringify(errorData)}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Groq body is empty");
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || !trimmedLine.startsWith("data: ")) continue;
+
+            const data = trimmedLine.replace("data: ", "");
+            if (data === "[DONE]") continue;
+
+            try {
+              const json = JSON.parse(data);
+              const content = json.choices[0]?.delta?.content || "";
+              if (content) {
+                controller.enqueue(encoder.encode(content));
+              }
+            } catch (e) {
+              // Ignorar erros de parse para chunks parciais
+            }
+          }
+        }
+        controller.close();
+      } catch (err) {
+        console.error("Groq Stream error:", err);
+        controller.error(err);
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
 
 async function handleGemini(messages: any[], systemInstruction: string) {

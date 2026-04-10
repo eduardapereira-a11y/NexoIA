@@ -489,6 +489,16 @@ export default function Home() {
                         <span className="card-tag">OpenRouter / gpt-oss</span>
                       </div>
                     </button>
+                    <button 
+                      className={`option-card ${settings.model === "groq" ? "active" : ""}`}
+                      onClick={() => setSettings(prev => ({ ...prev, model: "groq" }))}
+                    >
+                      <div className="card-radio"></div>
+                      <div className="card-info">
+                        <span className="card-title">Groq</span>
+                        <span className="card-tag">Llama 3.3 70B</span>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
