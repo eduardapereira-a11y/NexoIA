@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Plus, Sparkles, User, Bot, Trash2, MessageSquare, Pencil, Check, X, Settings } from "lucide-react";
+import { Send, Plus, Sparkles, User, Bot, Trash2, MessageSquare, Pencil, Check, X, Settings, PanelLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,7 @@ export default function Home() {
   const [editingTitle, setEditingTitle] = useState("");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -287,11 +288,16 @@ export default function Home() {
   return (
     <main className="dashboard-container">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <button className="new-chat-btn" onClick={createNewChat}>
-          <Plus size={16} />
-          Novo Chat
-        </button>
+      <aside className={`sidebar ${isSidebarOpen ? "open" : "closed"}`}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <button className="sidebar-toggle-btn inside" onClick={() => setIsSidebarOpen(false)}>
+            <PanelLeft size={18} />
+          </button>
+          <button className="new-chat-btn-compact" onClick={createNewChat}>
+            <Plus size={16} />
+            <span>Novo Chat</span>
+          </button>
+        </div>
         
         <div className="chat-history">
           {chats.map((chat) => (
@@ -364,6 +370,11 @@ export default function Home() {
 
       {/* Main Chat Area */}
       <section className="main-chat">
+        {!isSidebarOpen && (
+          <button className="sidebar-toggle-btn outside" onClick={() => setIsSidebarOpen(true)}>
+            <PanelLeft size={20} />
+          </button>
+        )}
         <div className="messages-container">
           {messages.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.8 }}>
