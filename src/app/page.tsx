@@ -345,7 +345,12 @@ export default function Home() {
         <div style={{ marginTop: 'auto', padding: '10px', fontSize: '12px', color: '#666', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={12} color="var(--accent-light)" />
-            <span>Nexo 3 Flash</span>
+            <span style={{ textTransform: 'capitalize' }}>
+              {settings.model === 'gemini' ? 'Nexo 3 Flash' : 
+               settings.model === 'chatgpt' ? 'ChatGPT (GPT-OSS)' : 
+               settings.model === 'groq' ? 'Groq (Llama 3.3)' : 
+               'NexoIA'}
+            </span>
           </div>
           <button 
             className="settings-toggle-btn"
