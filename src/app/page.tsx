@@ -30,6 +30,10 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   
+  // Message Editing State
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  const [editingMessageContent, setEditingMessageContent] = useState("");
+  
   // Settings State
   const [settings, setSettings] = useState({ model: "gemini", length: "media", textStyle: "normal" });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -184,7 +188,10 @@ export default function Home() {
           : c
       )
     );
-    
+        await processAIResponse(newMessages);
+  };
+
+  const processAIResponse = async (chatMessages: Message[]) => {
     setIsLoading(true);
 
     try {
@@ -192,7 +199,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          messages: newMessages,
+          messages: chatMessages,
           config: settings,
           memories
         }),
@@ -210,7 +217,7 @@ export default function Home() {
       setChats((prev) =>
         prev.map((c) =>
           c.id === activeChatId
-            ? { ...c, messages: [...newMessages, { role: "ai", content: "" }] }
+            ? { ...c, messages: [...chatMessages, { role: "ai", content: "" }] }
             : c
         )
       );
@@ -228,7 +235,7 @@ export default function Home() {
               ? {
                   ...c,
                   messages: [
-                    ...newMessages,
+                    ...chatMessages,
                     { role: "ai", content: aiResponse },
                   ],
                 }
@@ -241,7 +248,7 @@ export default function Home() {
       fetch("/api/memories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...newMessages, { role: "ai", content: aiResponse }] }),
+        body: JSON.stringify({ messages: [...chatMessages, { role: "ai", content: aiResponse }] }),
       })
       .then(r => r.json())
       .then(data => {
@@ -261,7 +268,7 @@ export default function Home() {
             ? {
                 ...c,
                 messages: [
-                  ...newMessages,
+                  ...chatMessages,
                   { role: "ai", content: "Ops, algo deu errado. Por favor, tente novamente." },
                 ],
               }
@@ -271,6 +278,50 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+
+  const startEditingMessage = (index: number, content: string) => {
+    setEditingMessageIndex(index);
+    setEditingMessageContent(content);
+  };
+
+  const cancelEditingMessage = () => {
+    setEditingMessageIndex(null);
+    setEditingMessageContent("");
+  };
+
+  const saveEditedMessage = async (index: number) => {
+    if (!activeChatId || isLoading) return;
+    
+    const newContent = editingMessageContent.trim();
+    if (!newContent) return;
+
+    const chat = chats.find(c => c.id === activeChatId);
+    if (!chat) return;
+
+    // Truncate messages up to the edited one and update its content
+    const updatedMessages = chat.messages.slice(0, index + 1).map((m, i) => 
+      i === index ? { ...m, content: newContent } : m
+    );
+
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === activeChatId
+          ? {
+              ...c,
+              messages: updatedMessages,
+              updatedAt: Date.now(),
+            }
+          : c
+      )
+    );
+    
+    setEditingMessageIndex(null);
+    setEditingMessageContent("");
+    
+    // Trigger new AI response
+    await processAIResponse(updatedMessages);
   };
 
   const [welcomeMessage, setWelcomeMessage] = useState("");
@@ -410,9 +461,51 @@ export default function Home() {
                         {m.role === "user" ? <User size={18} /> : <Bot size={18} />}
                       </div>
                       <div className={`text markdown-container font-style-${settings.textStyle || 'normal'}`}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {m.content || (isLoading && i === messages.length - 1 ? "..." : "")}
-                        </ReactMarkdown>
+                        {editingMessageIndex === i ? (
+                          <div className="edit-message-container">
+                            <textarea
+                              className="edit-message-textarea"
+                              value={editingMessageContent}
+                              onChange={(e) => setEditingMessageContent(e.target.value)}
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                                  if (!isMobile && !e.shiftKey) {
+                                    e.preventDefault();
+                                    saveEditedMessage(i);
+                                  }
+                                }
+                                if (e.key === "Escape") {
+                                  cancelEditingMessage();
+                                }
+                              }}
+                            />
+                            <div className="edit-message-actions">
+                              <button onClick={() => saveEditedMessage(i)} className="save-edit-btn">
+                                <Check size={14} /> Salvar
+                              </button>
+                              <button onClick={cancelEditingMessage} className="cancel-edit-btn">
+                                <X size={14} /> Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {m.content || (isLoading && i === messages.length - 1 ? "..." : "")}
+                            </ReactMarkdown>
+                            {m.role === "user" && !isLoading && (
+                              <button 
+                                className="message-edit-icon-btn" 
+                                onClick={() => startEditingMessage(i, m.content)}
+                                title="Editar mensagem"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -433,9 +526,12 @@ export default function Home() {
               value={input}
               onChange={handleInput}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
+                if (e.key === "Enter") {
+                  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                  if (!isMobile && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
                 }
               }}
             />

@@ -311,10 +311,109 @@ main {
   justify-content: center;
   padding: 32px 24px;
   transition: background 0.3s;
+  position: relative;
 }
 
-.message-row.user {
-  background: rgba(255, 255, 255, 0.015);
+.message-row:hover .message-edit-icon-btn {
+  opacity: 1;
+}
+
+.message-edit-icon-btn {
+  position: absolute;
+  right: -30px;
+  top: 0;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.message-edit-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--accent-light);
+}
+
+.edit-message-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.edit-message-textarea {
+  background: transparent;
+  border: none;
+  color: white;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.7;
+  outline: none;
+  width: 100%;
+  min-height: 60px;
+}
+
+.edit-message-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.save-edit-btn, .cancel-edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.save-edit-btn {
+  background: var(--accent-gradient);
+  color: white;
+}
+
+.save-edit-btn:hover {
+  filter: brightness(1.1);
+}
+
+.cancel-edit-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: #a1a1aa;
+}
+
+.cancel-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Ensure markdown container can contain the absolute positioned button */
+.markdown-container {
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .message-edit-icon-btn {
+    right: 0;
+    top: -25px;
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.3);
+  }
 }
 
 .message-content {
@@ -430,9 +529,11 @@ main {
   resize: none;
   font-family: inherit;
   font-size: 16px;
+  line-height: 1.5;
   max-height: 200px;
   outline: none;
   padding: 8px 0;
+  overflow-y: auto;
 }
 
 .send-btn {
